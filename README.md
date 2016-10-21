@@ -4,4 +4,4 @@
 
 ![软件主界面][5]
 
-[5]: https://raw.githubusercontent.com/chenjingyuanku/BrainWaveLine/master/images/window.jpg
+[5]: https://raw.githubusercontent.com/chenjingyuanku/BrainWaveLine/master/images/window.png
