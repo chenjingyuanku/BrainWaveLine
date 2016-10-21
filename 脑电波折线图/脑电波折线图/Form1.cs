@@ -10,6 +10,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Management;
 using System.Runtime.InteropServices;
+using SpeechLib;
+using System.Threading;
 
 namespace 脑电波折线图
 {
@@ -22,6 +24,7 @@ namespace 脑电波折线图
         }
         delegate void SetTextCallback(string text);
         delegate void SetLableCallback(string text1, string text2);
+        delegate void addYCallback(int y1,int y2);
         bool comState = false;
         string currentCOM = "";
         int[] baudRateArr = {1200,2400,4800,9600,14400,
@@ -203,7 +206,7 @@ namespace 脑电波折线图
             startIndex = SerialPortBox.SelectedItem.ToString().LastIndexOf("(");
             endIndex = SerialPortBox.SelectedItem.ToString().LastIndexOf(")");
             string comPortName = SerialPortBox.SelectedItem.ToString().Substring(startIndex + 1, endIndex - startIndex - 1);
-
+            
             if (comState == false)
             {
                 //设置串口属性
@@ -245,7 +248,7 @@ namespace 脑电波折线图
             StopBitBox.SelectedIndex = 0;
             RefreshCOMList();
             SerialPortBox.SelectedIndex = 0;
-            
+            chart1.Hide();
         }
         
 
@@ -364,6 +367,19 @@ namespace 脑电波折线图
                 this.textBox1.Text += text;
             }
         }
+        private void addY(int y1,int y2)
+        {
+            if (this.chart1.InvokeRequired)
+            {
+                addYCallback d = new addYCallback(addY);
+                this.Invoke(d, new object[] { y1,y2 });
+            }
+            else
+            {
+                this.chart1.Series["AttentionLine"].Points.AddY(y1);
+                this.chart1.Series["MeditationLine"].Points.AddY(y2);
+            }
+        }
         private string ByteArrayToHexString(byte[] data,int num)
         {//字节数组转化为16进制字符串
             string sb="";
@@ -406,6 +422,7 @@ namespace 脑电波折线图
                             {
                                 AddText("Attention = " + dat[i + 6 + 24 + 2].ToString() + "\r\n");
                                 AddText("Meditation = " + dat[i + 6 + 24 + 4].ToString() + "\r\n");
+                                addY(dat[i + 6 + 24 + 2],dat[i + 6 + 24 + 4]);
                                 for (int j = 0; j < 9; j++)
                                 {
                                     Attention[j] = Attention[j + 1];
@@ -451,6 +468,12 @@ namespace 脑电波折线图
                             }
                             SetNoticeLableText("信号强度："+ ((dat[i + 4] <=100)?(100- dat[i + 4]):0).ToString(),
                                 AttentionAV < 35?"疲劳驾驶":"未疲劳驾驶");
+                            if (AttentionAV < 35 && this.chart1.Series["AttentionLine"].Points.Count >= 9)
+                            {
+                                if(checkBox2.Checked == true)
+                                    SpeakChinese();
+                            }
+                            
                         }
                     }
                     number = 0;
@@ -551,5 +574,37 @@ namespace 脑电波折线图
             formGraphics.DrawLine(myPen0, 0, panel1.Height - 1, panel1.Width, panel1.Height - 1);
             formGraphics.Dispose();
         }
+
+        private void chart1_Click(object sender, EventArgs e)
+        {
+            chart1.Hide();
+        }
+        private Thread th = null;
+        bool SpeakFlag = false;
+        private void SpeakChinese()
+        {
+            if (SpeakFlag == false)
+            {
+                SpeakFlag = true;
+                th = new System.Threading.Thread(ThreadMethod);
+                th.Start(); //启动线程  
+            }
+        }
+        public void ThreadMethod()
+        {
+            SpVoice voice = new SpVoice();
+            int volumeBackup = voice.Volume;
+            voice.Volume = 100;
+            voice.Speak("您的状态略疲劳", SpeechVoiceSpeakFlags.SVSFDefault);
+            Thread.Sleep(10000);
+            voice.Volume = volumeBackup;
+            this.SpeakFlag = false;
+            this.th.Abort();
+        }
+        private void button4_Click(object sender, EventArgs e)
+        {
+            chart1.Show();
+        }
+        
     }
 }
